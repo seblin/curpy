@@ -68,8 +68,11 @@ def run(args):
         print(*get_currency_codes(), sep=',')
     else:
         conversions = args.conversions or stdin
-        for conv in conversions:
-            print(convert_string(conv, args.precision, args.add_currency))
+        try:
+            for conv in conversions:
+                print(convert_string(conv, args.precision, args.add_currency))
+        except KeyboardInterrupt:
+            print('')
 
 def main(arguments=None):
     parser = get_argument_parser()
