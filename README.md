@@ -1,2 +1,0 @@
-# curpy
-Converts foreign currencies
