@@ -23,12 +23,13 @@ import os
 
 from datetime import date, datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP
+from pathlib import Path
 from urllib.request import urlopen
 from xml.etree import ElementTree as etree
 
 EUROFXREF_URL = 'https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml'
 
-JSON_FILENAME = os.path.join('data', 'rates.json')
+JSON_FILENAME = Path(__file__).parents[1] / 'data' / 'rates.json'
 
 UPDATE_HOUR, UPDATE_MINUTE = (16, 0)
 
