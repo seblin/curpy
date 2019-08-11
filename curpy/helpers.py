@@ -39,6 +39,8 @@ def _convert(data, rate_converter, date_converter):
 
 def save_to_json(data, filename=JSON_FILENAME):
     converted = _convert(data, float, str)
+    if not os.path.exists(filename):
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
     with open(filename, 'w') as stream:
         json.dump(converted, stream)
 
@@ -57,7 +59,7 @@ def load_ecb_rates(url=EUROFXREF_URL, fallback=None):
         with urlopen(url) as stream:
             tree = etree.parse(stream)
     except OSError:
-        if not fallback:
+        if fallback is None:
             raise
         return fallback
     return _ecb_to_json(tree)
@@ -71,7 +73,7 @@ def _ecb_to_json(tree):
 
 def _is_outdated(data, filename, hour=UPDATE_HOUR, minute=UPDATE_MINUTE):
     now = datetime.now()
-    if data['date'] != now.date():
+    if data.get('date') != now.date():
         last_update = now.replace(hour=hour, minute=minute, second=0)
         if (hour, minute) > (now.hour, now.minute):
             # Update time not reached -> Use yesterday

@@ -43,8 +43,6 @@ def main():
         platforms = 'any',
         classifiers=[
             'Environment :: Console',
-            'Environment :: MacOS X',
-            'Environment :: Win32 (MS Windows)',
             'Intended Audience :: Developers',
             'Intended Audience :: End Users/Desktop',
             'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
@@ -54,8 +52,6 @@ def main():
             'Topic :: System :: Shells',
         ],
         packages=['curpy'],
-        package_data={'curpy': ['data/rates.json']},
-        include_package_data=True,
         scripts=['bin/curpy' + '.bat' if WINDOWS else '']
     )
 
