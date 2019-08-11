@@ -22,4 +22,4 @@ from .api import (
     convert, convert_string, get_currency_codes, get_rate, update_rates)
 
 __author__  = 'Sebastian Linke'
-__version__ = '0.1-dev2'
+__version__ = '0.1-dev4'

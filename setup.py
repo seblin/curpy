@@ -35,7 +35,7 @@ def main():
         name='curpy',
         version=curpy.__version__,
         description='A tool for converting between currencies',
-        long_description=curpy.__doc__,
+        long_description=open('README.rst').read(),
         author='Sebastian Linke',
         author_email='Seb_Linke@arcor.de',
         url='https://github.com/seblin/curpy',

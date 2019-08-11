@@ -19,34 +19,47 @@
 # along with Curpy.  If not, see <https://www.gnu.org/licenses/>.
 
 import json
-import os
 
 from datetime import date, datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP
+from os import getenv
 from pathlib import Path
 from urllib.request import urlopen
 from xml.etree import ElementTree as etree
 
 EUROFXREF_URL = 'https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml'
 
-JSON_FILENAME = Path(__file__).parent / 'data' / 'rates.json'
-
 UPDATE_HOUR, UPDATE_MINUTE = (16, 0)
+
+def get_json_filename():
+    envdir = getenv('APPDATA') or getenv('HOME')
+    if envdir:
+        path = Path(envdir) / '.curpy'
+    else:
+        path = Path(__file__).parent / 'data'
+    return path / 'rates.json'
+
+def _make_path(filename):
+    if not filename:
+        return get_json_filename()
+    return Path(filename)
 
 def _convert(data, rate_converter, date_converter):
     rates = {k: rate_converter(v) for k, v in data['rates'].items()}
     return {'rates': rates, 'date': date_converter(data['date'])}
 
-def save_to_json(data, filename=JSON_FILENAME):
+def save_to_json(data, filename=None):
     converted = _convert(data, float, str)
-    if not os.path.exists(filename):
-        os.makedirs(os.path.dirname(filename), exist_ok=True)
-    with open(filename, 'w') as stream:
+    path = _make_path(filename)
+    if not path.parent.exists():
+        path.parent.mkdir(parents=True)
+    with path.open('w') as stream:
         json.dump(converted, stream)
 
-def load_json_rates(filename=JSON_FILENAME, must_exist=True):
+def load_json_rates(filename=None, must_exist=True):
+    path = _make_path(filename)
     try:
-        with open(filename) as stream:
+        with path.open() as stream:
             data = json.load(stream)
     except FileNotFoundError:
         if not must_exist:
@@ -71,7 +84,7 @@ def _ecb_to_json(tree):
     isodate = tree.find('.//*[@time]').get('time')
     return {'rates': rates, 'date': date.fromisoformat(isodate)}
 
-def _is_outdated(data, filename, hour=UPDATE_HOUR, minute=UPDATE_MINUTE):
+def _is_outdated(data, path, hour=UPDATE_HOUR, minute=UPDATE_MINUTE):
     now = datetime.now()
     if data.get('date') != now.date():
         last_update = now.replace(hour=hour, minute=minute, second=0)
@@ -81,16 +94,17 @@ def _is_outdated(data, filename, hour=UPDATE_HOUR, minute=UPDATE_MINUTE):
         if last_update.isoweekday() > 5:
             # Date is weekend -> Use last Friday
             last_update -= timedelta(days=last_update.isoweekday() - 5)
-        file_modified = datetime.fromtimestamp(os.stat(filename).st_mtime)
+        file_modified = datetime.fromtimestamp(path.stat().st_mtime)
         return last_update > file_modified
     return False
 
-def load_update(filename=JSON_FILENAME):
-    data = load_json_rates(filename, must_exist=False)
-    if not data or _is_outdated(data, filename):
+def load_update(filename=None):
+    path = _make_path(filename)
+    data = load_json_rates(path, must_exist=False)
+    if not data or _is_outdated(data, path):
         ecb_data = load_ecb_rates(fallback=data)
         if ecb_data != data:
-            save_to_json(ecb_data, filename)
+            save_to_json(ecb_data, path)
             return ecb_data
     return data
 
