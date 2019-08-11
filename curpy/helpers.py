@@ -29,7 +29,7 @@ from xml.etree import ElementTree as etree
 
 EUROFXREF_URL = 'https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml'
 
-JSON_FILENAME = Path(__file__).parents[1] / 'data' / 'rates.json'
+JSON_FILENAME = Path(__file__).parent / 'data' / 'rates.json'
 
 UPDATE_HOUR, UPDATE_MINUTE = (16, 0)
 
