@@ -24,6 +24,7 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 from os import getenv
 from pathlib import Path
+from sys import stderr
 from urllib.request import urlopen
 from xml.etree import ElementTree as etree
 
@@ -39,52 +40,52 @@ def get_json_filename():
         path = Path(__file__).parent / 'data'
     return path / 'rates.json'
 
-def _make_path(filename):
+def make_path(filename):
     if not filename:
         return get_json_filename()
     return Path(filename)
 
-def _convert(data, rate_converter, date_converter):
+def convert(data, rate_converter, date_converter):
     rates = {k: rate_converter(v) for k, v in data['rates'].items()}
     return {'rates': rates, 'date': date_converter(data['date'])}
 
 def save_to_json(data, filename=None):
-    converted = _convert(data, float, str)
-    path = _make_path(filename)
+    converted = convert(data, float, str)
+    path = make_path(filename)
     if not path.parent.exists():
         path.parent.mkdir(parents=True)
     with path.open('w') as stream:
         json.dump(converted, stream)
 
-def load_json_rates(filename=None, must_exist=True):
-    path = _make_path(filename)
+def load_json_rates(filename=None):
+    path = make_path(filename)
     try:
         with path.open() as stream:
             data = json.load(stream)
     except FileNotFoundError:
-        if not must_exist:
-            return {}
-        raise
-    return _convert(data, Decimal, date.fromisoformat)
+        # That's likely to occur on the first program start
+        # No need to puzzle users with a message here :-)
+        return {}
+    return convert(data, Decimal, date.fromisoformat)
 
-def load_ecb_rates(url=EUROFXREF_URL, fallback=None):
+def load_ecb_rates(url=EUROFXREF_URL):
     try:
         with urlopen(url) as stream:
             tree = etree.parse(stream)
-    except OSError:
-        if fallback is None:
-            raise
-        return fallback
-    return _ecb_to_json(tree)
+    except OSError as e:
+        print(f'Failed to load ECB rates. Is {url!r} correct?',
+              f'The original error message was: {e}', sep='\n', file=stderr)
+        return {}
+    return ecb_to_json(tree)
 
-def _ecb_to_json(tree):
+def ecb_to_json(tree):
     rates = {'EUR': Decimal(1)}
     for elem in tree.iterfind('.//*[@rate]'):
         rates[elem.get('currency')] = Decimal(elem.get('rate'))
     isodate = tree.find('.//*[@time]').get('time')
     return {'rates': rates, 'date': date.fromisoformat(isodate)}
 
-def _is_outdated(data, path, hour=UPDATE_HOUR, minute=UPDATE_MINUTE):
+def is_outdated(data, path, hour=UPDATE_HOUR, minute=UPDATE_MINUTE):
     now = datetime.now()
     if data.get('date') != now.date():
         last_update = now.replace(hour=hour, minute=minute, second=0)
@@ -98,15 +99,15 @@ def _is_outdated(data, path, hour=UPDATE_HOUR, minute=UPDATE_MINUTE):
         return last_update > file_modified
     return False
 
-def load_update(filename=None):
-    path = _make_path(filename)
-    data = load_json_rates(path, must_exist=False)
-    if not data or _is_outdated(data, path):
-        ecb_data = load_ecb_rates(fallback=data)
-        if ecb_data != data:
+def load_rates_data(filename=None):
+    path = make_path(filename)
+    json_data = load_json_rates(path)
+    if not json_data or is_outdated(json_data, path):
+        ecb_data = load_ecb_rates()
+        if ecb_data:
             save_to_json(ecb_data, path)
             return ecb_data
-    return data
+    return json_data
 
 def get_formatted(number, precision=2):
     d = Decimal(number)

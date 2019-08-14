@@ -21,7 +21,7 @@
 from decimal import Decimal
 from re import fullmatch
 
-from .helpers import get_formatted, load_update
+from .helpers import get_formatted, load_rates_data
 
 CONVERT_RE = r'\s+'.join([
     r'(?P<amount>\d+(\.\d+)?)',
@@ -32,7 +32,7 @@ CONVERT_RE = r'\s+'.join([
 RATES = {}
 
 def update_rates():
-    data = load_update()
+    data = load_rates_data()
     RATES.update(data['rates'])
 
 def get_rate(currency):
