@@ -45,12 +45,9 @@ def make_path(filename):
         return get_json_filename()
     return Path(filename)
 
-def convert(data, rate_converter, date_converter):
-    rates = {k: rate_converter(v) for k, v in data['rates'].items()}
-    return {'rates': rates, 'date': date_converter(data['date'])}
-
 def save_to_json(data, filename=None):
-    converted = convert(data, float, str)
+    rates = {code: float(rate) for code, rate in data['rates'].items()}
+    converted = {'rates': rates, 'date': data['date'].isoformat()}
     path = make_path(filename)
     if not path.parent.exists():
         path.parent.mkdir(parents=True)
@@ -61,12 +58,12 @@ def load_json_rates(filename=None):
     path = make_path(filename)
     try:
         with path.open() as stream:
-            data = json.load(stream)
+            data = json.load(stream, parse_float=Decimal)
     except FileNotFoundError:
         # That's likely to occur on the first program start
         # No need to puzzle users with a message here :-)
         return {}
-    return convert(data, Decimal, date.fromisoformat)
+    return {'rates': data['rates'], 'date': date.fromisoformat(data['date'])}
 
 def load_ecb_rates(url=EUROFXREF_URL):
     try:
@@ -79,7 +76,7 @@ def load_ecb_rates(url=EUROFXREF_URL):
     return ecb_to_json(tree)
 
 def ecb_to_json(tree):
-    rates = {'EUR': Decimal(1)}
+    rates = {'EUR': Decimal('1.0')}
     for elem in tree.iterfind('.//*[@rate]'):
         rates[elem.get('currency')] = Decimal(elem.get('rate'))
     isodate = tree.find('.//*[@time]').get('time')
