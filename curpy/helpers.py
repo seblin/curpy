@@ -33,7 +33,7 @@ EUROFXREF_URL = 'https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml'
 UPDATE_HOUR, UPDATE_MINUTE = (16, 0)
 
 def get_json_filename():
-    envdir = getenv('APPDATA') or getenv('HOME')
+    envdir = getenv('PROGRAMDATA') or getenv('HOME')
     if envdir:
         path = Path(envdir) / '.curpy'
     else:
@@ -63,14 +63,15 @@ def load_json_rates(filename=None):
         # That's likely to occur on the first program start
         # No need to puzzle users with a message here :-)
         return {}
-    return {'rates': data['rates'], 'date': date.fromisoformat(data['date'])}
+    rates_date = date.fromisoformat(data['date'])
+    return {'rates': data['rates'], 'date': rates_date}
 
 def load_ecb_rates(url=EUROFXREF_URL):
     try:
         with urlopen(url) as stream:
             tree = etree.parse(stream)
     except OSError as e:
-        print(f'Failed to load ECB rates. Is {url!r} correct?',
+        print(f'Failed to load ECB rates. You or {url!r} might be offline.',
               f'The original error message was: {e}', sep='\n', file=stderr)
         return {}
     return ecb_to_json(tree)
