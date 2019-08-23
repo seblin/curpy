@@ -46,11 +46,11 @@ def save_to_json(data, filename=None):
     path = get_json_path(filename)
     rates = {code: float(rate) for code, rate in data['rates'].items()}
     datestring = data['date'].isoformat()
-    converted = {'rates': rates, 'date': datestring}
+    converted = json.dumps({'rates': rates, 'date': datestring})
     if not path.parent.exists():
         path.parent.mkdir(parents=True)
     with path.open('w') as stream:
-        json.dump(converted, stream)
+        stream.write(converted)
 
 def load_json_rates(filename=None):
     path = get_json_path(filename)
