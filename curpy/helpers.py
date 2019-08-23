@@ -20,7 +20,7 @@
 
 import json
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 from os import getenv
 from pathlib import Path
@@ -85,14 +85,14 @@ def ecb_to_json(tree):
 
 def is_outdated(data, hour=UPDATE_HOUR, minute=UPDATE_MINUTE):
     now = datetime.now()
-    last_update = now.replace(hour=hour, minute=minute, second=0)
-    if (hour, minute) > (now.hour, now.minute):
+    updated = datetime.combine(now.date(), time(hour, minute))
+    if (updated.hour, updated.minute) > (now.hour, now.minute):
         # Update time not reached -> Use yesterday
-        last_update -= timedelta(days=1)
-    if last_update.isoweekday() > 5:
+        updated -= timedelta(days=1)
+    if updated.isoweekday() > 5:
         # Date is weekend -> Use last Friday
-        last_update -= timedelta(days=last_update.isoweekday() - 5)
-    return last_update.date() > data['date']
+        updated -= timedelta(days=updated.isoweekday() - 5)
+    return updated.date() > data['date']
 
 def load_rates_data(filename=None):
     path = get_json_path(filename)
