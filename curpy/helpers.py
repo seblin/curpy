@@ -32,7 +32,9 @@ EUROFXREF_URL = 'https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml'
 
 UPDATE_HOUR, UPDATE_MINUTE = (16, 0)
 
-def get_json_filename():
+def get_json_path(filename=None):
+    if filename:
+        return Path(filename)
     envdir = getenv('PROGRAMDATA') or getenv('HOME')
     if envdir:
         path = Path(envdir) / '.curpy'
@@ -40,22 +42,18 @@ def get_json_filename():
         path = Path(__file__).parent / 'data'
     return path / 'rates.json'
 
-def make_path(filename):
-    if not filename:
-        return get_json_filename()
-    return Path(filename)
-
 def save_to_json(data, filename=None):
+    path = get_json_path(filename)
     rates = {code: float(rate) for code, rate in data['rates'].items()}
-    converted = {'rates': rates, 'date': data['date'].isoformat()}
-    path = make_path(filename)
+    datestring = data['date'].isoformat()
+    converted = {'rates': rates, 'date': datestring}
     if not path.parent.exists():
         path.parent.mkdir(parents=True)
     with path.open('w') as stream:
         json.dump(converted, stream)
 
 def load_json_rates(filename=None):
-    path = make_path(filename)
+    path = get_json_path(filename)
     try:
         with path.open() as stream:
             data = json.load(stream, parse_float=Decimal)
@@ -63,8 +61,8 @@ def load_json_rates(filename=None):
         # That's likely to occur on the first program start
         # No need to puzzle users with a message here :-)
         return {}
-    rates_date = date.fromisoformat(data['date'])
-    return {'rates': data['rates'], 'date': rates_date}
+    parsed_date = date.fromisoformat(data['date'])
+    return {'rates': data['rates'], 'date': parsed_date}
 
 def load_ecb_rates(url=EUROFXREF_URL):
     try:
@@ -79,28 +77,27 @@ def load_ecb_rates(url=EUROFXREF_URL):
 def ecb_to_json(tree):
     rates = {'EUR': Decimal('1.0')}
     for elem in tree.iterfind('.//*[@rate]'):
-        rates[elem.get('currency')] = Decimal(elem.get('rate'))
-    isodate = tree.find('.//*[@time]').get('time')
-    return {'rates': rates, 'date': date.fromisoformat(isodate)}
+        rate = elem.get('rate').rstrip('0')
+        rates[elem.get('currency')] = Decimal(rate)
+    datestring = tree.find('.//*[@time]').get('time')
+    parsed_date = date.fromisoformat(datestring)
+    return {'rates': rates, 'date': parsed_date}
 
-def is_outdated(data, path, hour=UPDATE_HOUR, minute=UPDATE_MINUTE):
+def is_outdated(data, hour=UPDATE_HOUR, minute=UPDATE_MINUTE):
     now = datetime.now()
-    if data.get('date') != now.date():
-        last_update = now.replace(hour=hour, minute=minute, second=0)
-        if (hour, minute) > (now.hour, now.minute):
-            # Update time not reached -> Use yesterday
-            last_update -= timedelta(days=1)
-        if last_update.isoweekday() > 5:
-            # Date is weekend -> Use last Friday
-            last_update -= timedelta(days=last_update.isoweekday() - 5)
-        file_modified = datetime.fromtimestamp(path.stat().st_mtime)
-        return last_update > file_modified
-    return False
+    last_update = now.replace(hour=hour, minute=minute, second=0)
+    if (hour, minute) > (now.hour, now.minute):
+        # Update time not reached -> Use yesterday
+        last_update -= timedelta(days=1)
+    if last_update.isoweekday() > 5:
+        # Date is weekend -> Use last Friday
+        last_update -= timedelta(days=last_update.isoweekday() - 5)
+    return last_update.date() > data['date']
 
 def load_rates_data(filename=None):
-    path = make_path(filename)
+    path = get_json_path(filename)
     json_data = load_json_rates(path)
-    if not json_data or is_outdated(json_data, path):
+    if not json_data or is_outdated(json_data):
         ecb_data = load_ecb_rates()
         if ecb_data:
             save_to_json(ecb_data, path)
