@@ -24,6 +24,7 @@ from datetime import date, datetime, time, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 from os import getenv
 from pathlib import Path
+from re import fullmatch
 from sys import stderr
 from urllib.request import urlopen
 from xml.etree import ElementTree as etree
@@ -31,6 +32,12 @@ from xml.etree import ElementTree as etree
 EUROFXREF_URL = 'https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml'
 
 UPDATE_HOUR, UPDATE_MINUTE = (16, 0)
+
+CONVERT_RE = r'\s+'.join([
+    r'(?P<amount>\d+(\.\d+)?)',
+    r'(?P<original_currency>[A-Z]{3})',
+    r'IN',
+    r'(?P<target_currency>[A-Z]{3})'])
 
 def get_json_path(filename=None):
     if filename:
@@ -103,6 +110,14 @@ def load_rates_data(filename=None):
             save_to_json(ecb_data, path)
             return ecb_data
     return json_data
+
+def parse_params(string):
+    match = fullmatch(CONVERT_RE, string.strip().upper())
+    if not match:
+        raise ValueError(f'invalid string format: {string}')
+    params = match.groupdict()
+    params['amount'] = Decimal(params['amount'])
+    return params
 
 def get_formatted(number, precision=2):
     d = Decimal(number)

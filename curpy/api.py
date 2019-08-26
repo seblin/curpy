@@ -19,15 +19,8 @@
 # along with Curpy.  If not, see <https://www.gnu.org/licenses/>.
 
 from decimal import Decimal
-from re import fullmatch
 
-from .helpers import get_formatted, load_rates_data
-
-CONVERT_RE = r'\s+'.join([
-    r'(?P<amount>\d+(\.\d+)?)',
-    r'(?P<original_currency>[A-Z]{3})',
-    r'IN',
-    r'(?P<target_currency>[A-Z]{3})'])
+from .helpers import get_formatted, load_rates_data, parse_params
 
 RATES = {}
 
@@ -55,10 +48,8 @@ def convert(amount, original_currency, target_currency):
     return amount * get_rate(target_currency)
 
 def convert_string(string, precision=2, add_currency=False):
-    match = fullmatch(CONVERT_RE, string.strip().upper())
-    if not match:
-        raise ValueError(f'invalid string format: {string!r}')
-    amount = get_formatted(convert(**match.groupdict()), precision)
+    params = parse_params(string)
+    amount = get_formatted(convert(**params), precision)
     if not add_currency:
         return amount
-    return f'{amount} {match.group("target_currency")}'
+    return f'{amount} {params["target_currency"]}'
