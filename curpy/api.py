@@ -47,8 +47,8 @@ def convert(amount, original_currency, target_currency):
         amount /= get_rate(original_currency)
     return amount * get_rate(target_currency)
 
-def convert_string(string, precision=2, add_currency=False):
-    params = parse_params(string)
+def convert_string(conversion_string, precision=2, add_currency=False):
+    params = parse_params(conversion_string)
     amount = get_formatted(convert(**params), precision)
     if not add_currency:
         return amount

@@ -31,13 +31,15 @@ from xml.etree import ElementTree as etree
 
 EUROFXREF_URL = 'https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml'
 
-UPDATE_HOUR, UPDATE_MINUTE = (16, 0)
-
 CONVERT_RE = r'\s+'.join([
     r'(?P<amount>\d+(\.\d+)?)',
     r'(?P<original_currency>[A-Z]{3})',
     r'IN',
     r'(?P<target_currency>[A-Z]{3})'])
+
+# Rates updates by ECB are around 16:00 CET on every working day
+# TODO: Avoid the offset for non-CET timezones
+UPDATE_TIME = time(16, 0)
 
 def get_json_path(filename=None):
     if filename:
@@ -90,9 +92,9 @@ def ecb_to_json(tree):
     parsed_date = date.fromisoformat(datestring)
     return {'rates': rates, 'date': parsed_date}
 
-def is_outdated(data, hour=UPDATE_HOUR, minute=UPDATE_MINUTE):
+def is_outdated(data, update_time=UPDATE_TIME):
     now = datetime.now()
-    updated = datetime.combine(now.date(), time(hour, minute))
+    updated = datetime.combine(now.date(), update_time)
     if (updated.hour, updated.minute) > (now.hour, now.minute):
         # Update time not reached -> Use yesterday
         updated -= timedelta(days=1)
@@ -111,10 +113,10 @@ def load_rates_data(filename=None):
             return ecb_data
     return json_data
 
-def parse_params(string):
-    match = fullmatch(CONVERT_RE, string.strip().upper())
+def parse_params(conversion_string):
+    match = fullmatch(CONVERT_RE, conversion_string.strip().upper())
     if not match:
-        raise ValueError(f'invalid string format: {string}')
+        raise ValueError(f'invalid string format: {conversion_string}')
     params = match.groupdict()
     params['amount'] = Decimal(params['amount'])
     return params
